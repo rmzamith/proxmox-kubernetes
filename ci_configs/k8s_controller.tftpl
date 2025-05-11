@@ -1,0 +1,10 @@
+#cloud-config
+hostname: k8s-controller
+fqdn: controller.k8s.yggdrasil
+ansible:
+  package_name: ansible-core
+  install_method: distro
+  run_user: ${ run_user }
+  pull:
+    url: ${ ansible_repo }
+    playbook_name: k8s_controller.yml

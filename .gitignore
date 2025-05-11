@@ -1,0 +1,6 @@
+*.env
+*.tfplan
+.terraform/
+terraform.tfstate.d/
+ci_configs/*.yml
+
