@@ -1,15 +1,13 @@
 locals {
-  nodes = ["1", "2", "3"]
+  node = "4"
 }
 
-resource "local_file" "cloud_init_node_template" {
-  for_each = toset(local.nodes)
-  content  = templatefile("${path.module}/ci_configs/k8s_node.tftpl", { node = each.key, run_user = local.pve.user, ansible_repo = local.pve.ansible_repo })
-  filename = "${path.module}/ci_configs/k8s_node${each.key}.yml"
+resource "local_file" "cloud_init_vpnnode_template" {
+  content  = templatefile("${path.module}/ci_configs/k8s_vpn_node.tftpl", { node = local.node, run_user = local.pve.user, ansible_repo = local.pve.ansible_repo })
+  filename = "${path.module}/ci_configs/k8s_vpn_node${local.node}.yml"
 }
 
-resource "null_resource" "cloud_init_node_config" {
-  for_each = toset(local.nodes)
+resource "null_resource" "cloud_init_vpnnode_config" {
   connection {
     type        = "ssh"
     user        = local.pve.user
@@ -18,18 +16,17 @@ resource "null_resource" "cloud_init_node_config" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/ci_configs/k8s_node${each.key}.yml"
-    destination = "/var/lib/vz/snippets/k8s_node${each.key}.yml"
+    source      = "${path.module}/ci_configs/k8s_vpn_node${local.node}.yml"
+    destination = "/var/lib/vz/snippets/k8s_vpn_node${local.node}.yml"
   }
 }
 
-resource "proxmox_vm_qemu" "k8s_node" {
+resource "proxmox_vm_qemu" "k8s_node_vpn" {
   depends_on  = [proxmox_vm_qemu.k8s_controller]
-  for_each    = toset(local.nodes)
   target_node = local.pve.node
-  name        = "k8s-node${each.key}"
-  desc        = "Kubernetes node ${each.key}"
-  vmid        = 800 + tonumber(each.key)
+  name        = "k8s-node${local.node}-VPN"
+  desc        = "Kubernetes node ${local.node} (VPN)"
+  vmid        = 800 + tonumber(local.node)
   clone       = "Ubuntu-Server-2504-Template"
   agent       = 1
   memory      = 4096
@@ -44,8 +41,8 @@ resource "proxmox_vm_qemu" "k8s_node" {
   scsihw = "virtio-scsi-single"
 
   nameserver = local.pve.gateway
-  ipconfig0  = "ip=${local.pve.network_prefix}${each.key}/24,gw=${local.pve.gateway},ip6=dhcp"
-  cicustom   = "user=local:snippets/k8s_node${each.key}.yml"
+  ipconfig0  = "ip=${local.pve.network_prefix}${local.node}/24,gw=${local.pve.gateway},ip6=dhcp"
+  cicustom   = "user=local:snippets/k8s_vpn_node${local.node}.yml"
   # reducing terraform time
   skip_ipv6 = true
   disks {
